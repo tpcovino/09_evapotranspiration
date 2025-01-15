@@ -103,6 +103,9 @@ for (package in neededPackages){pkgTest(package)}
 
 #### Import data
 ##### Meteorological data
+
+If you have not downloaded the data from the [Dropbox link](https://www.dropbox.com/scl/fo/sft7jj8edccwv0hhf8c0w/ADCpTvLbdWi0Hq1IHtc-Q5g?rlkey=du6hzjzqbwgurew12yzfk37uw&dl=0), be sure to do so.
+
 We'll import three datasets in this workflow, one containing actual data from the eddy covariance tower for several years. <br>
 Also imported is the discharge (Q) data from our watershed. Note that data is not collected during periods of deep snow. We will use this data to estimate the total discharge for 2022. <br>
 Additionally, we'll import the meteorological data from our watershed for the years of interest. We are going to estimate ET for our watershed during the 2022 water year, though met data is provided in calendar years, so we will need to extract the desired data from the met dataframe.
@@ -152,7 +155,6 @@ usfs_met_rh <- usfs_met %>%
   ungroup()
 ```
 
-
 ```{r}
 # Let's add daylight hours to the met dataframe
 # daylight contains month and day, lets format month and day for usfs_met so we can merge the dataframes:
@@ -172,12 +174,13 @@ usfs_met_rh <- usfs_met_rh %>% arrange(Date)
 # Check the head of merged data to verify the reordering
 head(usfs_met_rh)
 ```
+
 Now we have the RHmax and RHmin values that we will need for our ET models
 
 ##### Precipitation 
 To add a layer of checks we will also check precipitation totals for the watershed from our met data. This dataframe also provides cumulative precipitation, though the accumulation begins on January 1. Therefore we will need to calculate daily precipitation for each day of the water year and generate a new cumulative value.
-```{r}
 
+```{r}
 # Calculate daily precipitation by subtracting consecutive values, use mutate() to create a new column for the calculation.
 usfs_met <- usfs_met %>%
   BLANK(daily_ppt_mm = Cumulative_ppt..mm. - lag(Cumulative_ppt..mm., default = 0))
@@ -198,25 +201,19 @@ This was a lot of work to save one value.
 
 Often when writing code, it is necessary to first write 'pseudocode'. This allows us to think about workflow before writing scripts involves planning and structuring the logic of a script. Psuedocode is usually mixture of natural language and code-like constructs (e.g., 'I'll use 'merge' or 'ggplot' to...') that serves as a blueprint for our script before we dive into specific programming language syntax. Then we can develop our code by filling in the programming language as needed. 
 
-**Q1.** (2pnts)  In you own words, what did we do at each step in the above chunk and what is cumulative_ppt_2022. Why do we want to know this? 
+**Q1 (2 pnts)  In you own words, what did we do at each step in the above chunk and what is cumulative_ppt_2022. Why do we want to know this? **
 
 ANSWER:
-
-
-
-
-
 
 ##### Discharge data
 
 Our next step will be to import and format discharge data collected from the weir at Fool Creek. Again, data collection starts on April 20th this year. To estimate discharge between Sept 31 of the previous year and April 20th of 2022, we will assume daily discharge between these dates is the mean of the discharge values from each of these dates. 
 
-**Q2** (3pnts) Write pseudocode in a stepwise fashion to describe the workflow that will need to happen to estimate the total volume of water in mm/watershed area for 2022 lost to stream discharge. Consider that the units provided by USFS are in cubic feet/second (cfs).
+**Q2 (3pnts) Write pseudocode in a stepwise fashion to describe the workflow that will need to happen to estimate the total volume of water in mm/watershed area for 2022 lost to stream discharge. Consider that the units provided by USFS are in cubic feet/second (cfs).**
 
 ANSWER:
 1. Import dataframe
 2. ...
-
 
 ```{r}
 # Import weir data
@@ -259,13 +256,14 @@ Qsum2022 <-sum(meanwinterQ *days_difference, sum(lfc_weir$Q_daily_mm_per_day_per
 ```
 
 ##### Evapotranspiration data
+
 Import and transform ET data. <br>
-Note that ET data is in mmol/m2/s. We want to convert this to mm/day. <br>
+Note that ET data is in mmol/m2/s (mmol H2O per square meter per second). We want to convert this to mm/day. <br>
 Eddy covariance data collected from towers represents the exchange of gases, including water vapor, between the atmosphere and the land surface within a certain area known as the "footprint." This footprint area is not fixed; it changes in size and shape depending on factors like wind direction, thermal stability, and measurement height. Typically, it has a gradual border, meaning that the influence of the tower measurements extends beyond its immediate vicinity.
 
 For our specific tower data, we've estimated the mean flux area, or footprint area, to be approximately 0.35 square kilometers. However, when estimating the total evapotranspiration (ET) for our entire watershed, we need to extrapolate the ET measured by the tower to cover the entire watershed area. This extrapolation involves scaling up the measurements from the tower footprint to the larger area of the watershed to get a more comprehensive understanding of water vapor exchange over the entire region.
-```{r}
 
+```{r}
 # Import ET data
 usfs_et <- BLANK("US_FEF_ET.csv")
 
@@ -306,20 +304,18 @@ subset_data <- subset(usfs_et_daily, date >= as.Date("2021-10-01") & date <= as.
 ws_et_2022 <- sum(subset_data$ws_et)
 ```
 
-
 ```{r}
 Hbalance <- cumulative_ppt_2022 - ws_et_2022 - Qsum2022
 print(Hbalance)
 ```
-This appears to be a fairly well balanced water budget, especially consdering that we have made some estimates along the way. Let's see how this ET data compares to modeled data. 
 
+This appears to be a fairly well balanced water budget, especially consdering that we have made some estimates along the way. Let's see how this ET data compares to modeled data. 
 
 ### [The Priestly Taylor method](https://search.r-project.org/CRAN/refmans/Evapotranspiration/html/ET.PriestleyTaylor.html) (actual evapotranspiration)
 The Priestley-Taylor method is a semi-empirical model that estimates potential evapotranspiration as a function of net radiation. This method requires a list which contains:<br> (climate variables) required by Priestley-Taylor formulation:
 Tmax, Tmin (degree Celcius), RHmax, RHmin (percent), Rs (Megajoules per sqm) or n (hour). <br>
 We have measurements of relative humidity (RH) data from within our watershed meteorological station. However, RH data can be found through many sources providing local weather data. <br>
 n refers to the number of sunshine hours. 
-
 
 ```{r}
 # Transform data to a list for the function 
@@ -336,13 +332,13 @@ data_list <- list(
 ```
 
 Evapotranspiration comes with a list physical 'constants', but we want to replace important constants with data specific to our cite. 
+
 ```{r}
 data("constants")
 constants$Elev <- 2900
 constants$lat <- 39.89
 constants$lat_rad <- 0.6962
 ```
-
 
 ```{r, include = FALSE}
 data_list$Date <- as.Date(data_list$Date, format = "%Y-%m-%d")
@@ -378,6 +374,7 @@ Recall that each of these are estimates of potential ET.
 Crop coefficients (Kc values) for specific tree species like those found in the Fraser Experimental Forest (lodgepole pine or Englemann spruce) may not be as readily available as they are for agricultural crops. However, you may be able to find some guidance in scientific literature or forestry publications. From what we have found, Kc estimates for lodgepole pine forests can be between 0.4 and 0.8. These values may vary depending on factors such as climate, soil type, elevation, and other site-specific factors. Our own estimates using water balance data from dates that correspond with the eddy flux tower data suggests a seasonally fluctuating Kc, with a mean of 0.55. 
 
 AET = PET * Kc
+
 ```{r}
 kc = 0.55
 
@@ -407,21 +404,18 @@ ggplot() +
 
 ```
 
-**Q3**. (4pnts) Consider the two evapotranspiration (ET) models we have generated, one consistently underestimates ET, while the other consistently overestimates summer values and underestimates winter values. Consider ecosystem specificity in modeling. Why do you think these two methods generate such different estimates? What ecosystem-specific factors might contribute to the discrepancies between models?
+**Q3 (4 pnts) Consider the two evapotranspiration (ET) models we have generated, one consistently underestimates ET, while the other consistently overestimates summer values and underestimates winter values. Consider ecosystem specificity in modeling. Why do you think these two methods generate such different estimates? What ecosystem-specific factors might contribute to the discrepancies between models?**
 
 ANSWER:
 
-
-
-
-**Q4** (3pnts) Let's assume we do not have eddy covariance tower data for this time period, but you have the provided discharge and precipitation measurements. Which model would you choose to estimate an annual ET sum and why? 
-
+**Q4. (3 pnts) In the context of evapotranspiration modeling, discuss how vegetation type and soil properties might interact to influence AET in the Fraser Experimental Forest. Provide a hypothetical example of how these factors could vary between two sub-watersheds in the area.**
 
 ANSWER:
 
+**Q5 (5 pnts) Let's assume we do not have eddy covariance tower data for this time period, but you have the provided discharge and precipitation measurements. Which model would you choose to estimate an annual ET sum and why?** 
 
+ANSWER:
 
-
-**Q5** (3pnts) In our modeling script, while our main objective was to estimate evapotranspiration (ET), which specific aspect required the most labor and attention to detail? Reflect on the tasks involved in data preparation, cleaning, and formatting. How did these preliminary steps impact the overall modeling process? 
+**Q6 (3 pnts) In our modeling script, while our main objective was to estimate evapotranspiration (ET), which specific aspect required the most labor and attention to detail? Reflect on the tasks involved in data preparation, cleaning, and formatting. How did these preliminary steps impact the overall modeling process? **
 
 ANSWER:
