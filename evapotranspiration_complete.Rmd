@@ -1,12 +1,12 @@
 ---
 title: "Evapotransporation"
-author: "Lauren Kremer"
+author: "YOUR NAME HERE!!"
 date: "2024-04-09"
 output: html_document
 ---
 
 ## The repo can be found here
-15pnts<br>
+20 points<br>
 
 ## Background
 
@@ -74,6 +74,10 @@ Some resources for finding ET modeled from remote sensing data:
 [OpenET](https://etdata.org/) - you need a Google account for this one. This site is great if you need timeseries data. You can select 'gridded data' and draw a polygon in your area of interest. You can select the year of interest at the top of the map, and once the timeseries generates, you can view and compare the output of seven different models.
 
 #### Modeling:
+
+It is important to note that there are numerous pre-built functions available in various R packages designed for ET estimation. For instance, the 'Evapotranspiration' package provides ET estimates derived from approximately 20 distinct equations or variations. These functions require precise data formatting to ensure compatibility with the function arguments. To help you structure your function inputs similarly, many packages come with example datasets in their documentation. SPEI is another package that offers ET functions. The github repository for this package has been updated fairly recently, which can be important to verify. 
+
+Not all packages are equally maintained, as they are often developed by researchers or modelers to improve the repeatably of their work, and contribute to the broader scientific community. Unfortunately, once funding ceases, or if the original developer moves on to new projects, a custom package may no longer receive updates or support. As R, RStudio and other supporting packages are updated, a neglected package may become obsolete. If longevity is important to your project, it a good idea to check the development and maintenance history of custom or specialized packages.
 
 ## Codework:
 
@@ -175,7 +179,8 @@ head(usfs_met_rh)
 Now we have the RHmax and RHmin values that we will need for our ET models
 
 ##### Precipitation 
-To add a layer of checks we will also check precipitation totals for the watershed from our met data. This dataframe also provides cumulative precipitation, though the accumulation begins on January 1. Therefore we will need to calculate daily precipitation for each day of the water year and generate a new cumulative value.
+To add a layer of checks we will also check precipitation totals from the watershed from meteorological stations. This dataframe provides cumulative precipitation, though the accumulation begins on January 1. Therefore we will need to calculate daily precipitation for each day of the water year and generate a new cumulative value that accumulates from October 1 - Sept 30 (water year cumulative total).
+
 ```{r}
 
 # Calculate daily precipitation by subtracting consecutive values
@@ -198,25 +203,9 @@ This was a lot of work to save one value.
 
 Often when writing code, it is necessary to first write 'pseudocode'. This allows us to think about workflow before writing scripts involves planning and structuring the logic of a script. Psuedocode is usually mixture of natural language and code-like constructs (e.g., 'I'll use 'merge' or 'ggplot' to...') that serves as a blueprint for our script before we dive into specific programming language syntax. Then we can develop our code by filling in the programming language as needed. 
 
-**Q1.** (2pnts)  In you own words, what did we do at each step in the above chunk and what is cumulative_ppt_2022. Why do we want to know this? 
-
-ANSWER:
-
-
-
-
-
-
 ##### Discharge data
 
 Our next step will be to import and format discharge data collected from the weir at Fool Creek. Again, data collection starts on April 20th this year. To estimate discharge between Sept 31 of the previous year and April 20th of 2022, we will assume daily discharge between these dates is the mean of the discharge values from each of these dates. 
-
-**Q2** (3pnts) Write pseudocode in a stepwise fashion to describe the workflow that will need to happen to estimate the total volume of water in mm/watershed area for 2022 lost to stream discharge. Consider that the units provided by USFS are in cubic feet/second (cfs).
-
-ANSWER:
-1. Import dataframe
-2. ...
-
 
 ```{r}
 # Import weir data
@@ -269,7 +258,7 @@ For our specific tower data, we've estimated the mean flux area, or footprint ar
 # Import ET data
 usfs_et <- read.csv("US_FEF_ET.csv")
 
-# The ET data contains negative values. ET is not negative, we are going to convert these to NA. This may not always be an ideal solution. It is a good idea to talk to the tower maintainer or consult metadata to check the source of negative values:
+# The ET data contains negative values. ET is not negative. It is a good idea to talk to the tower maintainer or consult metadata to check the source of negative values:
 
 # Replace negative values in 'ET' column with 0 (this is the recommended course of action by our USFS maintainer)
 usfs_et$ET_mmol.m2.s[usfs_et$ET_mmol.m2.s < 0] <- 0.0
@@ -311,7 +300,7 @@ ws_et_2022 <- sum(subset_data$ws_et)
 Hbalance <- cumulative_ppt_2022 - ws_et_2022 - Qsum2022
 print(Hbalance)
 ```
-This appears to be a fairly well balanced water budget, especially consdering that we have made some estimates along the way. Let's see how this ET data compares to modeled data. 
+This appears to be a fairly well balanced water budget, especially considering that we have made some estimates along the way. Let's see how this ET data compares to modeled data. 
 
 
 ### [The Priestly Taylor method](https://search.r-project.org/CRAN/refmans/Evapotranspiration/html/ET.PriestleyTaylor.html) (actual evapotranspiration)
@@ -355,6 +344,8 @@ solar="sunshine hours", alpha=0.23, message="yes", AdditionalStats="no", save.cs
 # Lets plot the modeled output: 
 plot(outputPT$ET.Daily, main = "ET Daily Data", xlab = "Date", ylab = "ET")
 ```
+
+We can change the function name to specify the desired model. Now we'll try the[the Hamon method](http://data.snap.uaf.edu/data/Base/AK_2km/PET/Hamon_PET_equations.pdf).
 
 ```{r, include = FALSE}
 outputH <- ET.Hamon(data_list, constants, ts="daily",
@@ -407,21 +398,4 @@ ggplot() +
 
 ```
 
-**Q3**. (4pnts) Consider the two evapotranspiration (ET) models we have generated, one consistently underestimates ET, while the other consistently overestimates summer values and underestimates winter values. Consider ecosystem specificity in modeling. Why do you think these two methods generate such different estimates? What ecosystem-specific factors might contribute to the discrepancies between models?
 
-ANSWER:
-
-
-
-
-**Q4** (3pnts) Let's assume we do not have eddy covariance tower data for this time period, but you have the provided discharge and precipitation measurements. Which model would you choose to estimate an annual ET sum and why? 
-
-
-ANSWER:
-
-
-
-
-**Q5** (3pnts) In our modeling script, while our main objective was to estimate evapotranspiration (ET), which specific aspect required the most labor and attention to detail? Reflect on the tasks involved in data preparation, cleaning, and formatting. How did these preliminary steps impact the overall modeling process? 
-
-ANSWER:

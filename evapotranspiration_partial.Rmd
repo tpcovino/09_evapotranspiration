@@ -104,7 +104,7 @@ for (package in neededPackages){pkgTest(package)}
 #### Import data
 ##### Meteorological data
 
-If you have not downloaded the data from the [Dropbox link](https://www.dropbox.com/scl/fo/sft7jj8edccwv0hhf8c0w/ADCpTvLbdWi0Hq1IHtc-Q5g?rlkey=du6hzjzqbwgurew12yzfk37uw&dl=0), be sure to do so.
+If you have not downloaded the data from the [Dropbox link](https://www.dropbox.com/scl/fo/sft7jj8edccwv0hhf8c0w/ADCpTvLbdWi0Hq1IHtc-Q5g?rlkey=du6hzjzqbwgurew12yzfk37uw&dl=0), be sure to do so. 
 
 We'll import three datasets in this workflow, one containing actual data from the eddy covariance tower for several years. <br>
 Also imported is the discharge (Q) data from our watershed. Note that data is not collected during periods of deep snow. We will use this data to estimate the total discharge for 2022. <br>
@@ -178,7 +178,7 @@ head(usfs_met_rh)
 Now we have the RHmax and RHmin values that we will need for our ET models
 
 ##### Precipitation 
-To add a layer of checks we will also check precipitation totals for the watershed from our met data. This dataframe also provides cumulative precipitation, though the accumulation begins on January 1. Therefore we will need to calculate daily precipitation for each day of the water year and generate a new cumulative value.
+To add a layer of checks we will also check precipitation totals from the watershed from meteorological stations. This dataframe provides cumulative precipitation, though the accumulation begins on January 1. Therefore we will need to calculate daily precipitation for each day of the water year and generate a new cumulative value that is the sum of the daily precipitation from October 1 - Sept 30 (water year cumulative total).
 
 ```{r}
 # Calculate daily precipitation by subtracting consecutive values, use mutate() to create a new column for the calculation.
@@ -199,9 +199,10 @@ This was a lot of work to save one value.
 
 #### Pseudocode
 
-Often when writing code, it is necessary to first write 'pseudocode'. This allows us to think about workflow before writing scripts involves planning and structuring the logic of a script. Psuedocode is usually mixture of natural language and code-like constructs (e.g., 'I'll use 'merge' or 'ggplot' to...') that serves as a blueprint for our script before we dive into specific programming language syntax. Then we can develop our code by filling in the programming language as needed. 
+Often when writing code, it is necessary to start with pseudocode. Pseudocode allows us to plan and structure the logic of the script before implementing it in a specific programming language. It is typically a mix of natural language and code that serves as a blueprint for the script(e.g., "I'll used 'merge' to combine my data frames by a shared date column"). Once the workflow is outlined, then we can translate it into actual code using appropriate syntax. 
 
 **Q1 (2 pnts)  In you own words, what did we do at each step in the above chunk and what is cumulative_ppt_2022. Why do we want to know this? **
+Hint: if the third step in the above chunk is confusing, look at the new daily_ppt_mm column after running the first two steps to see what happens without it.
 
 ANSWER:
 
@@ -216,13 +217,13 @@ ANSWER:
 2. ...
 
 ```{r}
-# Import weir data
+# 
 lfc_weir<- read.csv("LFC_weir_2022.csv")
 
-# Convert 'TIMESTAMP' column to POSIXct type using lubridate
+# 
 lfc_weir$TIMESTAMP <- mdy_hm(lfc_weir$TIMESTAMP)
 
-# Conversion factor from cfs to cubic millimeters per second
+# 
 cfs_to_mm3_per_sec <- 28316846.6 
 
 # Convert cfs to cubic millimeters after grouping by day
@@ -267,7 +268,7 @@ For our specific tower data, we've estimated the mean flux area, or footprint ar
 # Import ET data
 usfs_et <- BLANK("US_FEF_ET.csv")
 
-# The ET data contains negative values. ET is not negative, we are going to convert these to NA. This may not always be an ideal solution. It is a good idea to talk to the tower maintainer or consult metadata to check the source of negative values:
+# The ET data contains negative values. ET is not negative. It is a good idea to talk to the tower maintainer or consult metadata to check the source of negative values:
 
 # Replace negative values in 'ET' column with 0 (this is the recommended course of action by our USFS maintainer)
 usfs_et$ET_mmol.m2.s[usfs_et$ET_mmol.m2.s < 0] <- 0.0
@@ -352,6 +353,8 @@ solar="sunshine hours", alpha=0.23, message="yes", AdditionalStats="no", save.cs
 plot(outputPT$ET.Daily, main = "ET Daily Data", xlab = "Date", ylab = "ET")
 ```
 
+We can change the function name to specify the desired model. Now we'll try the[the Hamon method](http://data.snap.uaf.edu/data/Base/AK_2km/PET/Hamon_PET_equations.pdf).
+
 ```{r, include = FALSE}
 outputH <- ET.Hamon(data_list, constants, ts="daily",
 solar="sunshine hours", alpha=0.23, message="yes", AdditionalStats="no", save.csv="no")
@@ -404,18 +407,20 @@ ggplot() +
 
 ```
 
-**Q3 (4 pnts) Consider the two evapotranspiration (ET) models we have generated, one consistently underestimates ET, while the other consistently overestimates summer values and underestimates winter values. Consider ecosystem specificity in modeling. Why do you think these two methods generate such different estimates? What ecosystem-specific factors might contribute to the discrepancies between models?**
+**Q3. (4 pnts) Consider the two evapotranspiration (ET) models we have generated, one consistently underestimates ET, while the other consistently overestimates summer values and underestimates winter values. Consider ecosystem specificity in modeling. Why do you think these two methods generate such different estimates? What ecosystem-specific factors might contribute to the discrepancies between models?**
 
 ANSWER:
 
-**Q4. (3 pnts) In the context of evapotranspiration modeling, discuss how vegetation type and soil properties might interact to influence AET in the Fraser Experimental Forest. Provide a hypothetical example of how these factors could vary between two sub-watersheds in the area.**
+**Q4 (3 pnts) Let's assume we do not have eddy covariance tower data for this time period, but you have the provided discharge and precipitation measurements. Which model would you choose to estimate an annual ET sum and why?** 
 
 ANSWER:
 
-**Q5 (5 pnts) Let's assume we do not have eddy covariance tower data for this time period, but you have the provided discharge and precipitation measurements. Which model would you choose to estimate an annual ET sum and why?** 
+**Q5 (3 pnts) In our modeling script, while our main objective was to estimate evapotranspiration (ET), which specific aspect required the most labor and attention to detail? Reflect on the tasks involved in data preparation, cleaning, and formatting. How did these preliminary steps impact the overall modeling process? **
 
 ANSWER:
 
-**Q6 (3 pnts) In our modeling script, while our main objective was to estimate evapotranspiration (ET), which specific aspect required the most labor and attention to detail? Reflect on the tasks involved in data preparation, cleaning, and formatting. How did these preliminary steps impact the overall modeling process? **
+**Q6 (5 pnts) Review the sub-watershed figure and analyze how vegetation characteristics (e.g., height, age), slope, and aspect vary across high-elevation watersheds in the Fraser Experimental Forest. Utilize Google Maps' high-resolution imagery as an additional resource to observe these landscape features. How might these factors interact to influence actual evapotranspiration (AET) in this region? Provide a hypothetical comparison of two sub-watersheds, describing how differences in these variables could lead to variations in AET.**
 
 ANSWER:
+
+![Fool Creek delineated watershed](fool_studyarea.png)
